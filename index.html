@@ -72,7 +72,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}
 </head>
 <body>
 <div class="app">
-<header class="top"><div class="topin"><div class="brand"><div class="logo">🛍️</div><div><h1>Administrador del Catálogo</h1><p>Google Sheets · GitHub · tasa USD · administración</p></div></div><div class="actions"><button class="btn icon" id="themeBtn" title="Cambiar modo">☾</button><button class="btn icon" id="installBtn" title="Instalar" style="display:none">＋</button><button class="btn icon" id="helpBtn" title="Ayuda">ⓘ</button><button class="btn textbtn" id="refreshBtn">↻ Sincronizar</button><button class="btn primary" id="newBtn">＋ Producto</button></div></div></header>
+<header class="top"><div class="topin"><div class="brand"><div class="logo">🛍️</div><div><h1>Administrador del Catálogo</h1><p>Google Sheets · GitHub · tasa USD · catálogo público</p></div></div><div class="actions"><button class="btn icon" id="themeBtn" title="Cambiar modo">☾</button><button class="btn textbtn" id="catalogBtn" title="Abrir catálogo público">🌐 Ver catálogo</button><button class="btn icon" id="installBtn" title="Instalar" style="display:none">＋</button><button class="btn icon" id="helpBtn" title="Ayuda">ⓘ</button><button class="btn textbtn" id="refreshBtn">↻ Sincronizar</button><button class="btn primary" id="newBtn">＋ Producto</button></div></div></header>
 <main class="wrap"><div class="connectionhero"><div><strong id="heroConn">Preparando conexión…</strong><span id="heroDetail">El administrador intentará conectar automáticamente con Google Sheets.</span></div><button class="btn small" id="heroRetry">↻ Reintentar</button></div>
 <section class="topgrid">
 <div class="card"><div class="eyebrow">Conexión del catálogo</div><div class="syncbox" style="margin-top:8px"><input id="gasUrl" class="input" placeholder="https://script.google.com/macros/s/.../exec"><button class="btn primary" id="connectBtn">Conectar</button></div><div style="display:flex;align-items:center;gap:8px;margin-top:8px"><span class="dot" id="connDot"></span><b id="connText" style="font-size:12px">Sin sincronizar</b><span class="sub" id="syncText">Conexión lista para sincronizar.</span></div></div>
@@ -126,19 +126,70 @@ function showPreview(url){if(url){$('preview').classList.add('show');$('previewI
 async function uploadImage(file){const reader=new FileReader();const base64=await new Promise((res,rej)=>{reader.onload=()=>res(String(reader.result).split(',')[1]);reader.onerror=rej;reader.readAsDataURL(file)});$('uploadProgress').classList.add('show');$('uploadBar').style.width='20%';$('uploadText').textContent='Subiendo a GitHub…';const d=await post({action:'subir_imagen_github',filename:file.name,mimeType:file.type||'image/jpeg',base64});$('uploadBar').style.width='90%';if(!d.ok)throw new Error(d.error||'No se pudo subir la imagen');pendingImageUrl=d.url;$('uploadBar').style.width='100%';showPreview(pendingImageUrl);$('uploadText').textContent='✓ Imagen subida';toast('Imagen subida a GitHub y enlace generado')}
 function buildProduct(){const p={id:clean($('fId').value)||clean($('fCodigo').value),codigo:clean($('fCodigo').value),codigo_producto:clean($('fCodigo').value),nombre:clean($('fNombre').value),categoria:clean($('fCategoria').value),precio_usd:num($('fPrecio').value),descripcion:clean($('fDescripcion').value),imagen:pendingImageUrl,disponible:$('fEstado').value==='disponible',status:$('fEstado').value,_fila:editing?editing._fila:undefined,forzar_duplicado:$('fForzar').checked};document.querySelectorAll('.extra').forEach(i=>p[i.dataset.key]=i.value);return p}
 async function saveProduct(){const codigo=clean($('fCodigo').value);if(!codigo){toast('El código del producto es obligatorio.','error');return}const p=buildProduct();$('saveBtn').disabled=true;$('saveBtn').textContent='Guardando…';try{const action=editing?'editar_producto':'crear_producto';const r=await post({action,producto:p});if(r.duplicado&&!p.forzar_duplicado){$('dupNotice').style.display='block';$('dupNotice').innerHTML='⚠️ '+esc(r.duplicado.mensaje||'Existe un registro repetido.')+'<br><br>Marca <b>“Guardar aunque exista ID/código repetido”</b> si deseas continuar.';$('saveBtn').disabled=false;$('saveBtn').textContent='Guardar producto';return}if(!r.ok)throw new Error(r.error||'No se pudo guardar');toast(editing?'Producto actualizado correctamente':'Producto agregado correctamente');closeModals();await getCatalog()}catch(e){toast(e.message,'error')}finally{$('saveBtn').disabled=false;$('saveBtn').textContent='Guardar producto'}}
-async function post(payload){if(!gasUrl)throw new Error('Primero conecta el Apps Script');const r=await fetch(gasUrl,{method:'POST',redirect:'follow',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});const text=await r.text();let d;try{d=JSON.parse(text)}catch(_ ){throw new Error('Apps Script no devolvió JSON. Revisa Web App y acceso “Cualquiera”.')}return d}
+async function post(payload){
+  if(!gasUrl) throw new Error('Primero conecta el Apps Script');
+  /*
+   * Apps Script Web Apps redirigen algunas peticiones POST a googleusercontent.
+   * Desde GitHub Pages eso puede romper fetch/CORS aunque el GET funcione.
+   * Enviamos las escrituras con un formulario oculto: el navegador permite
+   * esta navegación cross-origin y Apps Script recibe e.parameter.payload.
+   */
+  return await new Promise((resolve,reject)=>{
+    try{
+      const frame=document.createElement('iframe');
+      frame.name='gas_write_'+Date.now();
+      frame.style.display='none';
+      document.body.appendChild(frame);
+      const form=document.createElement('form');
+      form.method='POST';
+      form.action=gasUrl;
+      form.target=frame.name;
+      form.style.display='none';
+      const input=document.createElement('input');
+      input.type='hidden';
+      input.name='payload';
+      input.value=JSON.stringify(payload);
+      form.appendChild(input);
+      document.body.appendChild(form);
+      form.submit();
+      setTimeout(()=>{
+        form.remove();
+        frame.remove();
+        resolve({ok:true,queued:true});
+      },1200);
+    }catch(err){reject(err)}
+  });
+}
 window.editProduct=fila=>{const p=products.find(x=>Number(x._fila)===Number(fila));if(p)openModal(p)};window.askDelete=fila=>{deleteTarget=products.find(x=>Number(x._fila)===Number(fila));if(deleteTarget){$('deleteName').textContent=clean(deleteTarget.nombre||deleteTarget.codigo||deleteTarget.id)||'este producto';$('confirmModal').classList.add('show')}};
 function closeModals(){document.querySelectorAll('.modal').forEach(m=>m.classList.remove('show'));editing=null;deleteTarget=null}
 function applyTheme(theme){document.documentElement.classList.toggle('dark',theme==='dark');document.documentElement.classList.toggle('light',theme!=='dark');$('themeBtn').textContent=theme==='dark'?'☀':'☾';$('themeBtn').title=theme==='dark'?'Modo claro':'Modo noche';localStorage.setItem('CATALOGO_THEME',theme)}
 function setupTheme(){const saved=localStorage.getItem('CATALOGO_THEME');applyTheme(saved||'light');$('themeBtn').onclick=()=>applyTheme(document.documentElement.classList.contains('dark')?'light':'dark')}
 function setupPWA(){const manifest={name:'Administrador del Catálogo',short_name:'Admin Catálogo',start_url:location.href.split('?')[0],scope:'./',display:'standalone',background_color:'#f4f7fb',theme_color:'#2563eb',description:'Administrador del catálogo conectado a Google Sheets',icons:[]};const blob=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});const link=document.createElement('link');link.rel='manifest';link.href=URL.createObjectURL(blob);document.head.appendChild(link);window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();window.__install=e;$('installBtn').style.display='inline-flex'});$('installBtn').onclick=async()=>{if(!window.__install){toast('En iPhone usa Compartir → Agregar a pantalla de inicio.');return}window.__install.prompt();await window.__install.userChoice;window.__install=null;$('installBtn').style.display='none'}}
 $('productForm').addEventListener('submit',e=>{e.preventDefault();saveProduct()});$('newBtn').onclick=()=>openModal();$('newBtn2').onclick=()=>openModal();$('refreshBtn').onclick=()=>getCatalog();$('connectBtn').onclick=()=>getCatalog();$('heroRetry').onclick=()=>getCatalog();$('search').oninput=render;$('clearSearch').onclick=()=>{$('search').value='';render()};$('helpBtn').onclick=()=>$('helpModal').classList.add('show');
-$('rateBtn').onclick=async()=>{const n=num($('rateInput').value);if(!n||n<=0){toast('Escribe una tasa válida mayor que 0.','error');return}$('rateBtn').disabled=true;$('rateBtn').textContent='Guardando…';try{const r=await post({action:'actualizar_tasa',tasa:n});if(!r.ok)throw new Error(r.error||'No se pudo actualizar');setRate(r.configuracion);toast('Tasa USD actualizada correctamente')}catch(e){toast(e.message,'error')}finally{$('rateBtn').disabled=false;$('rateBtn').textContent='Guardar'}};
+$('rateBtn').onclick=async()=>{
+  const n=num($('rateInput').value);
+  if(!n||n<=0){toast('Escribe una tasa válida mayor que 0.','error');return}
+  $('rateBtn').disabled=true;$('rateBtn').textContent='Guardando…';
+  try{
+    await post({action:'actualizar_tasa',tasa:n});
+    $('rateStatus').textContent='⏳ Confirmando cambio…';
+    await new Promise(r=>setTimeout(r,1800));
+    const fresh=await getCatalog();
+    const actual=fresh&&fresh.configuracion?fresh.configuracion.tasa_usd:null;
+    if(Number(actual)===Number(n)){
+      toast('✅ Tasa USD actualizada y confirmada en Google Sheets');
+    }else{
+      throw new Error('El servidor no confirmó el cambio. Revisa que la implementación esté actualizada.');
+    }
+  }catch(e){toast(e.message,'error')}
+  finally{$('rateBtn').disabled=false;$('rateBtn').textContent='Guardar'}
+};
 $('confirmDelete').onclick=async()=>{if(!deleteTarget)return;$('confirmDelete').disabled=true;try{const r=await post({action:'eliminar_producto',fila:deleteTarget._fila,id:deleteTarget.id,nombre:deleteTarget.nombre});if(!r.ok)throw new Error(r.error||'No se pudo borrar');toast('Producto eliminado correctamente');closeModals();await getCatalog()}catch(e){toast(e.message,'error')}finally{$('confirmDelete').disabled=false}};
 $('fImagenFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;if(f.size>10*1024*1024){toast('La imagen supera 10 MB.','error');e.target.value='';return}try{await uploadImage(f)}catch(err){$('uploadProgress').classList.remove('show');toast(err.message,'error')}});
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=closeModals);document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show')}));
 $('gasUrl').value=gasUrl;
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();$('search').focus()}if(e.key==='Escape')closeModals()});
+$('catalogBtn').onclick=()=>window.open('https://kervysj.github.io/catalogo-2026/','_blank','noopener');
 setupTheme();setupPWA();getCatalog();
 </script>
 </body></html>
