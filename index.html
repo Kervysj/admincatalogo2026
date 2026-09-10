@@ -128,12 +128,6 @@ function buildProduct(){const p={id:clean($('fId').value)||clean($('fCodigo').va
 async function saveProduct(){const codigo=clean($('fCodigo').value);if(!codigo){toast('El código del producto es obligatorio.','error');return}const p=buildProduct();$('saveBtn').disabled=true;$('saveBtn').textContent='Guardando…';try{const action=editing?'editar_producto':'crear_producto';const r=await post({action,producto:p});if(r.duplicado&&!p.forzar_duplicado){$('dupNotice').style.display='block';$('dupNotice').innerHTML='⚠️ '+esc(r.duplicado.mensaje||'Existe un registro repetido.')+'<br><br>Marca <b>“Guardar aunque exista ID/código repetido”</b> si deseas continuar.';$('saveBtn').disabled=false;$('saveBtn').textContent='Guardar producto';return}if(!r.ok)throw new Error(r.error||'No se pudo guardar');toast(editing?'Producto actualizado correctamente':'Producto agregado correctamente');closeModals();await getCatalog()}catch(e){toast(e.message,'error')}finally{$('saveBtn').disabled=false;$('saveBtn').textContent='Guardar producto'}}
 async function post(payload){
   if(!gasUrl) throw new Error('Primero conecta el Apps Script');
-  /*
-   * Apps Script Web Apps redirigen algunas peticiones POST a googleusercontent.
-   * Desde GitHub Pages eso puede romper fetch/CORS aunque el GET funcione.
-   * Enviamos las escrituras con un formulario oculto: el navegador permite
-   * esta navegación cross-origin y Apps Script recibe e.parameter.payload.
-   */
   return await new Promise((resolve,reject)=>{
     try{
       const frame=document.createElement('iframe');
