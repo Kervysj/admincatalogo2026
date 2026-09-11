@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Admin Catálogo">
+<link rel="manifest" href="manifest.json">
 <title>Admin · Catálogo</title>
 
 <style>
@@ -51,7 +52,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}
 .searchbar{display:flex;gap:9px;align-items:center;margin-bottom:10px}.searchwrap{position:relative;flex:1}.searchwrap .input{padding-left:37px;padding-right:65px}.searchicon{position:absolute;z-index:1;left:12px;top:50%;transform:translateY(-52%);font-size:18px;color:var(--muted);pointer-events:none}.searchwrap kbd{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:9px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:2px 5px;background:var(--surface)}
 .filters{display:flex;gap:7px;overflow:auto;padding:2px 1px 11px;scrollbar-width:thin}.chip{border:1px solid var(--line);background:var(--surface2);color:var(--muted);border-radius:999px;padding:7px 11px;font-size:10px;font-weight:850;white-space:nowrap}.chip.active{background:color-mix(in srgb,var(--primary) 14%,var(--surface));border-color:color-mix(in srgb,var(--primary) 45%,var(--line));color:var(--primary)}
 .cataloggrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.product{overflow:hidden;border:1px solid var(--line);background:var(--surface);border-radius:17px;box-shadow:0 7px 20px rgba(15,23,42,.055);transition:.2s transform,.2s box-shadow,.2s border}.product:hover{transform:translateY(-3px);box-shadow:var(--shadow);border-color:color-mix(in srgb,var(--primary) 25%,var(--line))}
-.pic{height:190px;background:linear-gradient(135deg,var(--surface2),var(--bg));display:grid;place-items:center;overflow:hidden}.pic img{width:100%;height:100%;object-fit:cover}.noimg{font-size:36px;place-items:center}
+.pic{height:190px;background:linear-gradient(135deg,var(--surface2),var(--bg));display:grid;place-items:center;overflow:hidden;position:relative}.pic img{width:100%;height:100%;object-fit:cover}.noimg{font-size:36px;place-items:center}
 .pbody{padding:11px}.pcode{font-size:9px;color:var(--primary);font-weight:900;text-transform:uppercase;letter-spacing:.06em}.pname{font-size:13px;font-weight:900;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pcat{font-size:10px;color:var(--muted);margin-top:3px}.price{font-size:15px;font-weight:950;margin-top:8px}.badge{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:4px 7px;font-size:9px;font-weight:900}.badge.ok{background:rgba(5,150,105,.11);color:var(--ok)}.badge.off{background:rgba(220,38,38,.10);color:var(--danger)}
 .pactions{padding:0 11px 11px;display:flex;gap:7px}.pactions .btn{flex:1}
 .empty{grid-column:1/-1;text-align:center;padding:45px 15px;color:var(--muted);border:1px dashed var(--line);border-radius:15px}
@@ -64,22 +65,32 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}
 .toast{position:fixed;right:16px;bottom:16px;z-index:100;max-width:min(430px,calc(100% - 32px));background:#172033;color:#fff;border-radius:13px;padding:12px 14px;font-size:12px;font-weight:750;box-shadow:var(--shadow);display:none}.toast.show{display:block}
 .spin{animation:spin .9s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 .connectionhero{margin:0 0 14px;padding:12px 14px;border-radius:15px;border:1px solid var(--line);background:linear-gradient(90deg,color-mix(in srgb,var(--primary) 8%,var(--surface)),var(--surface));display:flex;align-items:center;justify-content:space-between;gap:12px}.connectionhero strong{font-size:12px}.connectionhero span{font-size:10px;color:var(--muted)}
+.check{display:flex;gap:8px;align-items:center;font-size:12px;font-weight:700}
 @media(max-width:1050px){.cataloggrid{grid-template-columns:repeat(3,minmax(0,1fr))}.topgrid{grid-template-columns:1fr}}
 @media(max-width:720px){.topin{padding:10px 12px}.brand p{display:none}.actions .textbtn{display:none}.wrap{padding:12px 10px 30px}.card{padding:13px;border-radius:17px}.rate{align-items:flex-start;flex-direction:column}.rateform{width:100%}.rateform .field{flex:1}.cataloggrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.pic{height:150px}.pbody{padding:9px}.pactions{padding:0 9px 9px;flex-direction:column}.formgrid,.helpgrid{grid-template-columns:1fr}.full{grid-column:auto}.dialogbody{padding:13px}.dialogfoot{padding:10px 13px}.searchbar{flex-wrap:wrap}.searchbar .searchwrap{min-width:0}.syncbox{align-items:stretch;flex-direction:column}.topin .btn{padding:8px 9px}.sectionhead .btn{white-space:nowrap}}
 @media(max-width:430px){.cataloggrid{grid-template-columns:1fr 1fr}.pic{height:135px}.brand h1{font-size:14px}.logo{width:40px;height:40px}.connectionhero{align-items:flex-start;flex-direction:column}}
 </style>
-
 </head>
 <body>
 <div class="app">
 <header class="top"><div class="topin"><div class="brand"><div class="logo">🛍️</div><div><h1>Administrador del Catálogo</h1><p>Google Sheets · GitHub · tasa USD · catálogo público</p></div></div><div class="actions"><button class="btn icon" id="themeBtn" title="Cambiar modo">☾</button><button class="btn textbtn" id="catalogBtn" title="Abrir catálogo público">🌐 Ver catálogo</button><button class="btn icon" id="installBtn" title="Instalar" style="display:none">＋</button><button class="btn icon" id="helpBtn" title="Ayuda">ⓘ</button><button class="btn textbtn" id="refreshBtn">↻ Sincronizar</button><button class="btn primary" id="newBtn">＋ Producto</button></div></div></header>
-<main class="wrap"><div class="connectionhero"><div><strong id="heroConn">Preparando conexión…</strong><span id="heroDetail">El administrador intentará conectar automáticamente con Google Sheets.</span></div><button class="btn small" id="heroRetry">↻ Reintentar</button></div>
+<main class="wrap">
+<div class="connectionhero">
+  <div><strong id="heroConn">Preparando conexión…</strong><span id="heroDetail">El administrador intentará conectar automáticamente con Google Sheets.</span></div>
+  <button class="btn small" id="heroRetry">↻ Reintentar</button>
+</div>
 <section class="topgrid">
 <div class="card"><div class="eyebrow">Conexión del catálogo</div><div class="syncbox" style="margin-top:8px"><input id="gasUrl" class="input" placeholder="https://script.google.com/macros/s/.../exec"><button class="btn primary" id="connectBtn">Conectar</button></div><div style="display:flex;align-items:center;gap:8px;margin-top:8px"><span class="dot" id="connDot"></span><b id="connText" style="font-size:12px">Sin sincronizar</b><span class="sub" id="syncText">Conexión lista para sincronizar.</span></div></div>
 <div class="card"><div class="rate"><div><div class="eyebrow">Tasa del dólar</div><strong id="rateValue">—</strong><div class="sub" id="rateStatus">Solo se modifica este valor.</div></div><div class="rateform"><div class="field"><label>Costo del dólar (Bs/USD)</label><input id="rateInput" class="input" type="number" step="0.01" min="0.01" placeholder="150"></div><button class="btn primary" id="rateBtn">Guardar</button></div></div></div>
 </section>
-<section class="card"><div class="sectionhead"><div><h2>Catálogo</h2><div class="count" id="count">0 productos</div></div><button class="btn primary" id="newBtn2">＋ Ingresar producto</button></div><div class="searchbar"><div class="searchwrap"><span class="searchicon">⌕</span><input id="search" class="input" autocomplete="off" placeholder="Buscar producto, código, categoría…"><kbd>Ctrl K</kbd></div><button class="btn" id="clearSearch">Limpiar</button></div><div class="filters" id="filters"></div><div class="cataloggrid" id="catalogGrid"></div></section>
-</main></div>
+<section class="card">
+<div class="sectionhead"><div><h2>Catálogo</h2><div class="count" id="count">0 productos</div></div><button class="btn primary" id="newBtn2">＋ Ingresar producto</button></div>
+<div class="searchbar"><div class="searchwrap"><span class="searchicon">⌕</span><input id="search" class="input" autocomplete="off" placeholder="Buscar producto, código, categoría…"><kbd>Ctrl K</kbd></div><button class="btn" id="clearSearch">Limpiar</button></div>
+<div class="filters" id="filters"></div>
+<div class="cataloggrid" id="catalogGrid"></div>
+</section>
+</main>
+</div>
 
 <div class="modal" id="productModal"><div class="dialog"><div class="dialoghead"><div><h3 id="modalTitle">Ingresar producto</h3><div class="sub">Solo el código del producto es obligatorio. Los demás campos pueden quedar vacíos.</div></div><button class="close" data-close>×</button></div><form id="productForm"><div class="dialogbody"><div id="dupNotice" class="notice warn" style="display:none"></div><div class="formgrid">
 <div class="field"><label>Código del producto <span class="required">*</span></label><input id="fCodigo" class="input" required placeholder="Ej: ZAP-001"><div class="help">Si ya existe, te avisaremos. Tú decides si guardas el repetido.</div></div>
@@ -90,111 +101,14 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}
 <div class="field"><label>Estado</label><select id="fEstado" class="select"><option value="disponible">Disponible</option><option value="agotado">Agotado / oculto</option></select></div>
 <div class="field full"><label>Descripción</label><textarea id="fDescripcion" class="textarea" rows="3" placeholder="Opcional"></textarea></div>
 <div class="field full"><label>Imagen</label><div class="imagebox"><input id="fImagenFile" type="file" accept="image/*" class="input"><div class="help" style="margin-top:5px">Elige una imagen desde el teléfono. El servidor la sube a GitHub y devuelve el enlace público.</div><div class="progress" id="uploadProgress"><div class="bar" id="uploadBar"></div></div><div class="preview" id="preview"><img id="previewImg"><div><b id="uploadText" style="font-size:11px">Imagen lista</b><div id="imageUrlText" class="help" style="word-break:break-all"></div></div></div></div></div>
-<div class="field full"><label>Otros campos de Google Sheets</label><div id="extraFields" class="formgrid"></div><div class="help">Si mañana agregas una nueva columna en Google Sheets, aparecerá aquí automáticamente después de sincronizar. No tienes que modificar este HTML.</div></div>
+<div class="field full"><label>Otros campos de Google Sheets</label><div id="extraFields" class="formgrid"></div><div class="help">Si mañana agregas una nueva columna en Google Sheets, aparecerá aquí automáticamente después de sincronizar.</div></div>
 <div class="field full"><label class="check"><input id="fForzar" type="checkbox"> Guardar aunque exista ID/código repetido</label></div>
 </div></div><div class="dialogfoot"><button type="button" class="btn" data-close>Cancelar</button><button type="submit" class="btn primary" id="saveBtn">Guardar producto</button></div></form></div></div>
 
 <div class="modal" id="confirmModal"><div class="dialog small"><div class="dialoghead"><h3>Confirmar eliminación</h3><button class="close" data-close>×</button></div><div class="dialogbody"><p style="font-size:13px;line-height:1.6;margin:0">¿Seguro que quieres borrar <b id="deleteName"></b>? Esta acción elimina la fila del producto en Google Sheets.</p></div><div class="dialogfoot"><button class="btn" data-close>Cancelar</button><button class="btn danger" id="confirmDelete">Sí, borrar</button></div></div></div>
-<div class="modal" id="helpModal"><div class="dialog small"><div class="dialoghead"><div><h3>¿Cómo funciona?</h3><div class="sub">Panel pensado para que casi nunca tengas que tocar Google Sheets.</div></div><button class="close" data-close>×</button></div><div class="dialogbody"><div class="helpgrid"><div class="helpitem"><b>🔗 Sincronizar</b><p>Pega la URL /exec de tu Apps Script y pulsa Conectar. Se guarda en este navegador.</p></div><div class="helpitem"><b>➕ Producto</b><p>Solo el código es obligatorio. Puedes dejar los demás campos vacíos.</p></div><div class="helpitem"><b>🖼️ Imagen</b><p>Seleccionas una foto. Apps Script la sube a GitHub y devuelve el enlace público para la columna Imagen. El token NO va dentro de este HTML.</p></div><div class="helpitem"><b>🔐 GitHub</b><p>En Apps Script configura GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO y opcionalmente GITHUB_BRANCH/GITHUB_FOLDER en Propiedades del script.</p></div><div class="helpitem"><b>⚠️ Repetidos</b><p>Si ID o código ya existe, aparecerá una advertencia. Puedes cancelar o marcar que deseas guardar el repetido.</p></div><div class="helpitem"><b>✏️ Editar</b><p>Puedes cambiar cualquier dato mostrado por el panel y guardar los cambios. El panel confirma la escritura antes de mostrarla como exitosa.</p></div><div class="helpitem"><b>🗑️ Borrar</b><p>Elimina definitivamente la fila correspondiente. Para algo temporal, usa 👁 Ocultar y podrás recuperarlo.</p></div><div class="helpitem"><b>💵 Dólar</b><p>El bloque de tasa modifica CONFIGURACION!B2 y renueva sus 24 horas de vigencia. El panel espera confirmación real del servidor.</p></div><div class="helpitem"><b>📑 Nuevas columnas</b><p>Si agregas una columna en la hoja, el panel la detectará y mostrará como campo adicional.</p></div></div></div></div></div>
-<div class="toast" id="toast"></div>
 
-<script>
-const DEFAULT_URL="https://script.google.com/macros/s/AKfycbxgOEcKDNrkvcHLFEaQNh_UQ2nmlIiXbqWYFDnT_XghqVjqIsS9kumamoViGcD-f5_lgQ/exec";
-const LEGACY_URL="https://script.google.com/macros/s/AKfycbx5cDJiQKm9mbqwf-WDGfMNb6WjYEhJMiaRawRRqZkiA4Gpj7ohg5VFiyCTMsKeo461Ng/exec";
-const SAVED_URL=localStorage.getItem('CATALOGO_GAS_URL');
-let gasUrl=(!SAVED_URL||SAVED_URL===LEGACY_URL)?DEFAULT_URL:SAVED_URL;
-let products=[],headers=[],editing=null,deleteTarget=null,pendingImageUrl='',activeCategory='Todos';
-
-const $=id=>document.getElementById(id);
-const clean=v=>String(v??'').trim();
-function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function num(v){if(v===''||v==null)return null;const n=Number(String(v).replace(',','.'));return Number.isFinite(n)?n:null}
-function norm(v){return clean(v).toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
-function toast(msg,kind='ok'){const t=$('toast');t.textContent=msg;t.style.background=kind==='error'?'#b91c1c':kind==='warn'?'#92400e':'#172033';t.classList.add('show');clearTimeout(window.__toast);window.__toast=setTimeout(()=>t.classList.remove('show'),4500)}
-function setConnection(ok,text,detail){$('connDot').style.background=ok?'#10b981':'#ef4444';$('connText').textContent=text;$('syncText').textContent=detail||'';$('heroConn').textContent=ok?'● Conectado a Google Sheets':'● '+text;$('heroDetail').textContent=detail||''}
-function discoverHeaders(d){if(Array.isArray(d.encabezados)&&d.encabezados.length)return d.encabezados.map(clean).filter(Boolean);const s=new Set();products.forEach(p=>Object.keys(p||{}).forEach(k=>{if(!['_fila','precio_bs','status','disponible'].includes(k))s.add(k)}));return [...s]}
-async function getCatalog(){const url=clean($('gasUrl').value)||gasUrl;if(!url){toast('Pega la URL /exec de tu Apps Script.','error');return}gasUrl=url;localStorage.setItem('CATALOGO_GAS_URL',url);$('connDot').style.background='#f59e0b';$('connText').textContent='Conectando…';$('syncText').textContent='Leyendo Google Sheets…';$('heroConn').textContent='Conectando…';$('heroDetail').textContent='Consultando el Web App…';try{const r=await fetch(url+'?admin=1&t='+Date.now(),{cache:'no-store',redirect:'follow'});if(!r.ok)throw new Error('HTTP '+r.status);const text=await r.text();let d;try{d=JSON.parse(text)}catch(_ ){throw new Error('El /exec no está devolviendo JSON.')}if(!d.ok)throw new Error(d.error||'Respuesta inválida');products=Array.isArray(d.productos)?d.productos:[];headers=discoverHeaders(d);renderFilters();render();setRate(d.configuracion);setConnection(true,'Conectado',products.length+' productos sincronizados · '+new Date().toLocaleString());return d}catch(e){setConnection(false,'Sin conexión',e.message);toast('No se pudo sincronizar: '+e.message,'error')}}
-function setRate(c){if(!c){$('rateValue').textContent='—';return}$('rateValue').textContent=c.tasa_usd?Number(c.tasa_usd).toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2})+' Bs/USD':'—';$('rateStatus').textContent=c.tasa_activa?'🟢 Vigente · '+(c.horas_desde_actualizacion??0)+' h':'🔴 Vencida / pendiente de confirmar';$('rateInput').value=c.tasa_usd||''}
-function renderFilters(){const cats=[...new Set(products.map(p=>clean(p.categoria||p.rubro)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));if(activeCategory!=='Todos'&&!cats.includes(activeCategory))activeCategory='Todos';$('filters').innerHTML=['Todos',...cats].map(c=>`<button class="chip ${c===activeCategory?'active':''}" onclick="setCategory(${JSON.stringify(c)})">${esc(c)}</button>`).join('')}
-window.setCategory=c=>{activeCategory=c;renderFilters();render()}
-function smartMatch(p,q){if(!q)return true;const cat=clean(p.categoria||p.rubro);const fields=[p.id,p.codigo,p.codigo_producto,p.nombre,p.producto,p.titulo,cat,p.subcategoria,p.descripcion,p.mas_detalles,p.status];const hay=norm(fields.join(' '));return norm(q).split(/\s+/).filter(Boolean).every(term=>hay.includes(term))}
-function render(){const q=clean($('search').value);let list=products.filter(p=>{const cat=clean(p.categoria||p.rubro)||'General';return smartMatch(p,q)&&(activeCategory==='Todos'||cat===activeCategory)});$('count').textContent=list.length+' producto'+(list.length===1?'':'s');$('catalogGrid').innerHTML=list.length?list.map(productCard).join(''):`<div class="empty">No encontramos productos para <b>${esc(q||'esta categoría')}</b>.<br><span style="font-size:10px">Prueba con nombre, código, categoría o una palabra de la descripción.</span></div>`}
-function productCard(p){const fila=Number(p._fila);const code=clean(p.codigo||p.codigo_producto||'');const id=clean(p.id);const name=clean(p.nombre||p.producto||p.titulo)||'Sin nombre';const cat=clean(p.categoria||p.rubro)||'General';const img=clean(p.imagen||p.foto||p.link_imagen||p.url);const price=num(p.precio_usd??p.precio);return `<article class="product"><div class="pic">${img?`<img src="${esc(img)}" alt="${esc(name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'">`:'<span></span>'}<div class="noimg" style="${img?'display:none':''}">🛍️</div></div><div class="pbody"><div class="pcode">${esc(code||id||'SIN CÓDIGO')}</div><div class="pname" title="${esc(name)}">${esc(name)}</div><div class="pcat">${esc(cat)}</div><div class="price">${price!=null?'$ '+price.toFixed(2):'—'}</div><div style="margin-top:6px"><span class="badge ${p.disponible===false?'off':'ok'}">● ${p.disponible===false?'No disponible':'Disponible'}</span></div></div><div class="pactions"><button class="btn small" onclick="editProduct(${fila})">✎ Editar</button><button class="btn small" onclick="toggleVisibility(${fila},${p.disponible===false?'true':'false'})">${p.disponible===false?'👁 Mostrar':'👁 Ocultar'}</button><button class="btn small danger" onclick="askDelete(${fila})">🗑 Borrar</button></div></article>`}
-function openModal(prod=null){editing=prod;pendingImageUrl=prod?clean(prod.imagen||prod.foto||prod.link_imagen||prod.url):'';$('modalTitle').textContent=prod?'Editar producto':'Ingresar producto';$('fCodigo').value=prod?clean(prod.codigo||prod.codigo_producto):'';$('fId').value=prod?clean(prod.id):'';$('fNombre').value=prod?clean(prod.nombre||prod.producto||prod.titulo):'';$('fCategoria').value=prod?clean(prod.categoria||prod.rubro):'';$('fPrecio').value=prod&&num(prod.precio_usd??prod.precio)!=null?num(prod.precio_usd??prod.precio):'';$('fDescripcion').value=prod?clean(prod.descripcion||prod.detalle):'';$('fEstado').value=prod&&prod.disponible===false?'agotado':'disponible';$('fForzar').checked=false;$('dupNotice').style.display='none';$('fImagenFile').value='';showPreview(pendingImageUrl);renderExtra(prod);$('productModal').classList.add('show');setTimeout(()=>$('fCodigo').focus(),60)}
-function renderExtra(prod){const known=new Set(['id','codigo','codigo_producto','nombre','producto','titulo','categoria','rubro','precio_usd','precio','costo','descripcion','detalle','imagen','foto','link_imagen','url','disponible','estado','status','_fila','precio_bs']);const keys=headers.filter(k=>!known.has(clean(k).toLowerCase()));$('extraFields').innerHTML=keys.map(k=>`<div class="field"><label>${esc(k.replace(/_/g,' '))}</label><input class="input extra" data-key="${esc(k)}" value="${esc(prod?prod[k]??'':'')}" placeholder="Opcional"></div>`).join('')}
-function showPreview(url){if(url){$('preview').classList.add('show');$('previewImg').src=url;$('imageUrlText').textContent=url;$('uploadText').textContent='Imagen actual/lista'}else{$('preview').classList.remove('show');$('imageUrlText').textContent=''}}
-async function uploadImage(file){const reader=new FileReader();const base64=await new Promise((res,rej)=>{reader.onload=()=>res(String(reader.result).split(',')[1]);reader.onerror=rej;reader.readAsDataURL(file)});$('uploadProgress').classList.add('show');$('uploadBar').style.width='20%';$('uploadText').textContent='Subiendo a GitHub…';const d=await post({action:'subir_imagen_github',filename:file.name,mimeType:file.type||'image/jpeg',base64});$('uploadBar').style.width='90%';if(!d.ok)throw new Error(d.error||'No se pudo subir la imagen');pendingImageUrl=d.url;$('uploadBar').style.width='100%';showPreview(pendingImageUrl);$('uploadText').textContent='✓ Imagen subida';toast('Imagen subida a GitHub y enlace generado')}
-function buildProduct(){const p={id:clean($('fId').value)||clean($('fCodigo').value),codigo:clean($('fCodigo').value),codigo_producto:clean($('fCodigo').value),nombre:clean($('fNombre').value),categoria:clean($('fCategoria').value),precio_usd:num($('fPrecio').value),descripcion:clean($('fDescripcion').value),imagen:pendingImageUrl,disponible:$('fEstado').value==='disponible',status:$('fEstado').value,_fila:editing?editing._fila:undefined,forzar_duplicado:$('fForzar').checked};document.querySelectorAll('.extra').forEach(i=>p[i.dataset.key]=i.value);return p}
-async function saveProduct(){const codigo=clean($('fCodigo').value);if(!codigo){toast('El código del producto es obligatorio.','error');return}const p=buildProduct();$('saveBtn').disabled=true;$('saveBtn').textContent='Guardando…';try{const action=editing?'editar_producto':'crear_producto';const r=await post({action,producto:p});if(r.duplicado&&!p.forzar_duplicado){$('dupNotice').style.display='block';$('dupNotice').innerHTML='⚠️ '+esc(r.duplicado.mensaje||'Existe un registro repetido.')+'<br><br>Marca <b>“Guardar aunque exista ID/código repetido”</b> si deseas continuar.';$('saveBtn').disabled=false;$('saveBtn').textContent='Guardar producto';return}if(!r.ok)throw new Error(r.error||'No se pudo guardar');toast(editing?'Producto actualizado correctamente':'Producto agregado correctamente');closeModals();await getCatalog()}catch(e){toast(e.message,'error')}finally{$('saveBtn').disabled=false;$('saveBtn').textContent='Guardar producto'}}
-async function post(payload){
-  if(!gasUrl) throw new Error('Primero conecta el Apps Script');
-  const requestId='op_'+Date.now()+'_'+Math.random().toString(36).slice(2,10);
-  const body={...payload,request_id:requestId};
-  return await new Promise((resolve,reject)=>{
-    let finished=false, attempts=0, timer=null, form=null, frame=null;
-    const cleanup=()=>{if(timer)clearTimeout(timer);try{form&&form.remove()}catch(_){ }try{frame&&frame.remove()}catch(_){ }};
-    const finish=r=>{if(finished)return;finished=true;cleanup();resolve(r)};
-    const fail=e=>{if(finished)return;finished=true;cleanup();reject(e instanceof Error?e:new Error(String(e)))};
-    const poll=async()=>{
-      if(finished)return; attempts++;
-      try{
-        const r=await fetch(gasUrl+'?action=estado_operacion&id='+encodeURIComponent(requestId)+'&t='+Date.now(),{cache:'no-store',redirect:'follow'});
-        if(!r.ok)throw new Error('HTTP '+r.status);
-        const data=await r.json();
-        if(!data.pendiente){finish(data);return;}
-      }catch(err){
-        if(attempts>=12){fail(new Error('No se pudo confirmar la operación con Google Apps Script. Revisa la implementación y vuelve a intentar.'));return;}
-      }
-      if(attempts>=24){fail(new Error('Google Apps Script tardó demasiado en confirmar la operación.'));return;}
-      timer=setTimeout(poll,700);
-    };
-    try{
-      frame=document.createElement('iframe'); frame.name='gas_write_'+Date.now()+'_'+Math.random().toString(36).slice(2); frame.style.display='none'; document.body.appendChild(frame);
-      form=document.createElement('form'); form.method='POST'; form.action=gasUrl; form.target=frame.name; form.style.display='none';
-      const input=document.createElement('input'); input.type='hidden'; input.name='payload'; input.value=JSON.stringify(body); form.appendChild(input); document.body.appendChild(form); form.submit();
-      setTimeout(poll,350);
-    }catch(err){fail(err)}
-  });
-}
-
-window.editProduct=fila=>{const p=products.find(x=>Number(x._fila)===Number(fila));if(p)openModal(p)};window.askDelete=fila=>{deleteTarget=products.find(x=>Number(x._fila)===Number(fila));if(deleteTarget){$('deleteName').textContent=clean(deleteTarget.nombre||deleteTarget.codigo||deleteTarget.id)||'este producto';$('confirmModal').classList.add('show')}};
-window.toggleVisibility=async(fila,ocultar)=>{
-  const p=products.find(x=>Number(x._fila)===Number(fila)); if(!p)return;
-  const nombre=clean(p.nombre||p.codigo||p.id)||'este producto';
-  const accion=ocultar?'mostrar':'ocultar';
-  if(!confirm(`¿Quieres ${accion} “${nombre}”?\n\n${ocultar?'Volverá a aparecer en el catálogo público.':'Dejará de aparecer en el catálogo público, pero seguirá guardado en Google Sheets.'}`))return;
-  try{const r=await post({action:'cambiar_visibilidad',fila,ocultar:!ocultar});if(!r.ok)throw new Error(r.error||'No se pudo cambiar la visibilidad');toast(r.mensaje||'Visibilidad actualizada');await getCatalog()}catch(e){toast(e.message,'error')}
-};
-
-function closeModals(){document.querySelectorAll('.modal').forEach(m=>m.classList.remove('show'));editing=null;deleteTarget=null}
-function applyTheme(theme){document.documentElement.classList.toggle('dark',theme==='dark');document.documentElement.classList.toggle('light',theme!=='dark');$('themeBtn').textContent=theme==='dark'?'☀':'☾';$('themeBtn').title=theme==='dark'?'Modo claro':'Modo noche';localStorage.setItem('CATALOGO_THEME',theme)}
-function setupTheme(){const saved=localStorage.getItem('CATALOGO_THEME');applyTheme(saved||'light');$('themeBtn').onclick=()=>applyTheme(document.documentElement.classList.contains('dark')?'light':'dark')}
-function setupPWA(){const manifest={name:'Administrador del Catálogo',short_name:'Admin Catálogo',start_url:location.href.split('?')[0],scope:'./',display:'standalone',background_color:'#f4f7fb',theme_color:'#2563eb',description:'Administrador del catálogo conectado a Google Sheets',icons:[]};const blob=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});const link=document.createElement('link');link.rel='manifest';link.href=URL.createObjectURL(blob);document.head.appendChild(link);window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();window.__install=e;$('installBtn').style.display='inline-flex'});$('installBtn').onclick=async()=>{if(!window.__install){toast('En iPhone usa Compartir → Agregar a pantalla de inicio.');return}window.__install.prompt();await window.__install.userChoice;window.__install=null;$('installBtn').style.display='none'}}
-$('productForm').addEventListener('submit',e=>{e.preventDefault();saveProduct()});$('newBtn').onclick=()=>openModal();$('newBtn2').onclick=()=>openModal();$('refreshBtn').onclick=()=>getCatalog();$('connectBtn').onclick=()=>getCatalog();$('heroRetry').onclick=()=>getCatalog();$('search').oninput=render;$('clearSearch').onclick=()=>{$('search').value='';render()};$('helpBtn').onclick=()=>$('helpModal').classList.add('show');
-$('rateBtn').onclick=async()=>{
-  const n=num($('rateInput').value);
-  if(!n||n<=0){toast('Escribe una tasa válida mayor que 0.','error');return}
-  $('rateBtn').disabled=true;$('rateBtn').textContent='Guardando…';
-  try{
-    await post({action:'actualizar_tasa',tasa:n});
-    $('rateStatus').textContent='⏳ Confirmando cambio…';
-    await new Promise(r=>setTimeout(r,1800));
-    const fresh=await getCatalog();
-    const actual=fresh&&fresh.configuracion?fresh.configuracion.tasa_usd:null;
-    if(Number(actual)===Number(n)){
-      toast('✅ Tasa USD actualizada y confirmada en Google Sheets');
-    }else{
-      throw new Error('El servidor no confirmó el cambio. Revisa que la implementación esté actualizada.');
-    }
-  }catch(e){toast(e.message,'error')}
-  finally{$('rateBtn').disabled=false;$('rateBtn').textContent='Guardar'}
-};
-$('confirmDelete').onclick=async()=>{if(!deleteTarget)return;$('confirmDelete').disabled=true;try{const r=await post({action:'eliminar_producto',fila:deleteTarget._fila,id:deleteTarget.id,nombre:deleteTarget.nombre});if(!r.ok)throw new Error(r.error||'No se pudo borrar');toast('Producto eliminado correctamente');closeModals();await getCatalog()}catch(e){toast(e.message,'error')}finally{$('confirmDelete').disabled=false}};
-$('fImagenFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;if(f.size>10*1024*1024){toast('La imagen supera 10 MB.','error');e.target.value='';return}try{await uploadImage(f)}catch(err){$('uploadProgress').classList.remove('show');toast(err.message,'error')}});
-document.querySelectorAll('[data-close]').forEach(b=>b.onclick=closeModals);document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show')}));
-$('gasUrl').value=gasUrl;
-document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();$('search').focus()}if(e.key==='Escape')closeModals()});
-$('catalogBtn').onclick=()=>window.open('https://kervysj.github.io/catalogo-2026/','_blank','noopener');
-setupTheme();setupPWA();getCatalog();
-</script>
-</body></html>
+<div class="modal" id="helpModal"><div class="dialog small"><div class="dialoghead"><div><h3>¿Cómo funciona?</h3><div class="sub">Panel pensado para que casi nunca tengas que tocar Google Sheets.</div></div><button class="close" data-close>×</button></div><div class="dialogbody"><div class="helpgrid">
+<div class="helpitem"><b>🔗 Sincronizar</b><p>Pega la URL /exec de tu Apps Script y pulsa Conectar. Se guarda en este navegador.</p></div>
+<div class="helpitem"><b>➕ Producto</b><p>Solo el código es obligatorio. Puedes dejar los demás campos vacíos.</p></div>
+<div class="helpitem"><b>🖼️ Imagen</b><p>Seleccionas una foto. Apps Script la sube a GitHub y devuelve el enlace público. El token NO va dentro de este HTML.</p></div>
+<div class="helpitem"><b>🔐 GitHub</b><p>Configura GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO y opcional
