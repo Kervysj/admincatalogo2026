@@ -111,4 +111,533 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}
 <div class="helpitem"><b>🔗 Sincronizar</b><p>Pega la URL /exec de tu Apps Script y pulsa Conectar. Se guarda en este navegador.</p></div>
 <div class="helpitem"><b>➕ Producto</b><p>Solo el código es obligatorio. Puedes dejar los demás campos vacíos.</p></div>
 <div class="helpitem"><b>🖼️ Imagen</b><p>Seleccionas una foto. Apps Script la sube a GitHub y devuelve el enlace público. El token NO va dentro de este HTML.</p></div>
-<div class="helpitem"><b>🔐 GitHub</b><p>Configura GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO y opcional
+<div class="helpitem"><b>🔐 GitHub</b><p>Configura GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO y opcionalmente GITHUB_BRANCH/GITHUB_FOLDER en Propiedades del script. El OWNER debe ir en minúsculas.</p></div>
+<div class="helpitem"><b>⚠️ Repetidos</b><p>Si ID o código ya existe, aparecerá una advertencia. Puedes cancelar o marcar que deseas guardar el repetido.</p></div>
+<div class="helpitem"><b>✏️ Editar</b><p>Puedes cambiar cualquier dato mostrado por el panel y guardar los cambios. El servidor confirma la escritura antes de dar éxito.</p></div>
+<div class="helpitem"><b>🗑️ Borrar</b><p>Elimina definitivamente la fila correspondiente. Para algo temporal, usa ocultar.</p></div>
+<div class="helpitem"><b>💵 Dólar</b><p>El bloque de tasa modifica CONFIGURACION!B2 y renueva sus 24 horas de vigencia. Espera confirmación real del servidor.</p></div>
+<div class="helpitem"><b>📑 Nuevas columnas</b><p>Si agregas una columna en la hoja, el panel la detectará y mostrará como campo adicional.</p></div>
+<div class="helpitem"><b>🔄 Auto-refresh</b><p>El panel se sincroniza solo cada 30 segundos si no estás editando.</p></div>
+</div></div></div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   CONFIGURACIÓN INICIAL
+   ============================================================ */
+const DEFAULT_URL = ""; // ← opcional: puedes dejar vacío y escribir la URL manualmente
+const LEGACY_URL = "";
+const SAVED_URL = localStorage.getItem('CATALOGO_GAS_URL');
+let gasUrl = SAVED_URL || DEFAULT_URL;
+
+let products = [], headers = [], editing = null, deleteTarget = null,
+    pendingImageUrl = '', activeCategory = 'Todos';
+let autoRefreshId = null;
+
+const $ = id => document.getElementById(id);
+const clean = v => String(v ?? '').trim();
+function esc(v){return String(v ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function num(v){if(v===''||v==null)return null;const n=Number(String(v).replace(',','.'));return Number.isFinite(n)?n:null}
+function norm(v){return clean(v).toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
+
+function toast(msg, kind='ok'){
+  const t = $('toast');
+  t.textContent = msg;
+  t.style.background = kind === 'error' ? '#b91c1c' : kind === 'warn' ? '#92400e' : '#172033';
+  t.classList.add('show');
+  clearTimeout(window.__toast);
+  window.__toast = setTimeout(()=>t.classList.remove('show'), 4500);
+}
+
+function setConnection(ok, text, detail){
+  $('connDot').style.background = ok ? '#10b981' : '#ef4444';
+  $('connText').textContent = text;
+  $('syncText').textContent = detail || '';
+  $('heroConn').textContent = ok ? '● Conectado a Google Sheets' : '● ' + text;
+  $('heroDetail').textContent = detail || '';
+}
+
+function discoverHeaders(d){
+  if (Array.isArray(d.encabezados) && d.encabezados.length) {
+    return d.encabezados.map(clean).filter(Boolean);
+  }
+  const s = new Set();
+  products.forEach(p => Object.keys(p || {}).forEach(k => {
+    if (!['_fila','precio_bs','status','disponible'].includes(k)) s.add(k);
+  }));
+  return [...s];
+}
+
+/* ============================================================
+   GET CATÁLOGO
+   ============================================================ */
+async function getCatalog(){
+  const url = clean($('gasUrl').value) || gasUrl;
+  if (!url) { toast('Pega la URL /exec de tu Apps Script.', 'error'); return; }
+  gasUrl = url;
+  localStorage.setItem('CATALOGO_GAS_URL', url);
+
+  $('connDot').style.background = '#f59e0b';
+  $('connText').textContent = 'Conectando…';
+  $('syncText').textContent = 'Leyendo Google Sheets…';
+  $('heroConn').textContent = 'Conectando…';
+  $('heroDetail').textContent = 'Consultando el Web App…';
+
+  try {
+    const r = await fetch(url + '?t=' + Date.now(), { cache: 'no-store', redirect: 'follow' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const text = await r.text();
+    let d;
+    try { d = JSON.parse(text); }
+    catch(_) { throw new Error('El /exec no está devolviendo JSON.'); }
+    if (!d.ok) throw new Error(d.error || 'Respuesta inválida');
+
+    products = Array.isArray(d.productos) ? d.productos : [];
+    headers = discoverHeaders(d);
+    renderFilters();
+    render();
+    setRate(d.configuracion);
+    setConnection(true, 'Conectado', products.length + ' productos sincronizados · ' + new Date().toLocaleString());
+    return d;
+  } catch(e){
+    setConnection(false, 'Sin conexión', e.message);
+    toast('No se pudo sincronizar: ' + e.message, 'error');
+  }
+}
+
+function setRate(c){
+  if (!c) { $('rateValue').textContent = '—'; return; }
+  $('rateValue').textContent = c.tasa_usd
+    ? Number(c.tasa_usd).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' Bs/USD'
+    : '—';
+  $('rateStatus').textContent = c.tasa_activa
+    ? '🟢 Vigente · ' + (c.horas_desde_actualizacion ?? 0) + ' h'
+    : '🔴 Vencida / pendiente de confirmar';
+  $('rateInput').value = c.tasa_usd || '';
+}
+
+/* ============================================================
+   FILTROS Y RENDER
+   ============================================================ */
+function renderFilters(){
+  const cats = [...new Set(products.map(p => clean(p.categoria || p.rubro)).filter(Boolean))]
+    .sort((a,b) => a.localeCompare(b,'es'));
+  if (activeCategory !== 'Todos' && !cats.includes(activeCategory)) activeCategory = 'Todos';
+  $('filters').innerHTML = ['Todos', ...cats].map(c =>
+    `<button class="chip ${c === activeCategory ? 'active' : ''}" onclick="setCategory(${JSON.stringify(c)})">${esc(c)}</button>`
+  ).join('');
+}
+
+window.setCategory = c => { activeCategory = c; renderFilters(); render(); };
+
+function smartMatch(p, q){
+  if (!q) return true;
+  const cat = clean(p.categoria || p.rubro);
+  const fields = [p.id, p.codigo, p.codigo_producto, p.nombre, p.producto,
+                  p.titulo, cat, p.subcategoria, p.descripcion, p.mas_detalles, p.status];
+  const hay = norm(fields.join(' '));
+  return norm(q).split(/\s+/).filter(Boolean).every(term => hay.includes(term));
+}
+
+function render(){
+  const q = clean($('search').value);
+  let list = products.filter(p => {
+    const cat = clean(p.categoria || p.rubro) || 'General';
+    return smartMatch(p, q) && (activeCategory === 'Todos' || cat === activeCategory);
+  });
+  $('count').textContent = list.length + ' producto' + (list.length === 1 ? '' : 's');
+  $('catalogGrid').innerHTML = list.length
+    ? list.map(productCard).join('')
+    : `<div class="empty">No encontramos productos para <b>${esc(q || 'esta categoría')}</b>.<br><span style="font-size:10px">Prueba con nombre, código, categoría o una palabra de la descripción.</span></div>`;
+}
+
+function productCard(p){
+  const fila = Number(p._fila);
+  const code = clean(p.codigo || p.codigo_producto || '');
+  const id = clean(p.id);
+  const name = clean(p.nombre || p.producto || p.titulo) || 'Sin nombre';
+  const cat = clean(p.categoria || p.rubro) || 'General';
+  const img = clean(p.imagen || p.foto || p.link_imagen || p.url);
+  const price = num(p.precio_usd ?? p.precio);
+
+  return `<article class="product">
+    <div class="pic">
+      ${img
+        ? `<img src="${esc(img)}" alt="${esc(name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'">`
+        : ''}
+      <div class="noimg" style="${img ? 'display:none' : ''}">🛍️</div>
+    </div>
+    <div class="pbody">
+      <div class="pcode">${esc(code || id || 'SIN CÓDIGO')}</div>
+      <div class="pname" title="${esc(name)}">${esc(name)}</div>
+      <div class="pcat">${esc(cat)}</div>
+      <div class="price">${price != null ? '$ ' + price.toFixed(2) : '—'}</div>
+      <div style="margin-top:6px">
+        <span class="badge ${p.disponible === false ? 'off' : 'ok'}">● ${p.disponible === false ? 'No disponible' : 'Disponible'}</span>
+      </div>
+    </div>
+    <div class="pactions">
+      <button class="btn small" onclick="editProduct(${fila})">✎ Editar</button>
+      <button class="btn small danger" onclick="askDelete(${fila})">🗑 Borrar</button>
+    </div>
+  </article>`;
+}
+
+/* ============================================================
+   MODAL PRODUCTO
+   ============================================================ */
+function openModal(prod = null){
+  detenerAutoRefresh();
+  editing = prod;
+  pendingImageUrl = prod ? clean(prod.imagen || prod.foto || prod.link_imagen || prod.url) : '';
+  $('modalTitle').textContent = prod ? 'Editar producto' : 'Ingresar producto';
+  $('fCodigo').value = prod ? clean(prod.codigo || prod.codigo_producto) : '';
+  $('fId').value = prod ? clean(prod.id) : '';
+  $('fNombre').value = prod ? clean(prod.nombre || prod.producto || prod.titulo) : '';
+  $('fCategoria').value = prod ? clean(prod.categoria || prod.rubro) : '';
+  $('fPrecio').value = prod && num(prod.precio_usd ?? prod.precio) != null ? num(prod.precio_usd ?? prod.precio) : '';
+  $('fDescripcion').value = prod ? clean(prod.descripcion || prod.detalle) : '';
+  $('fEstado').value = prod && prod.disponible === false ? 'agotado' : 'disponible';
+  $('fForzar').checked = false;
+  $('dupNotice').style.display = 'none';
+  $('fImagenFile').value = '';
+  showPreview(pendingImageUrl);
+  renderExtra(prod);
+  $('productModal').classList.add('show');
+  setTimeout(() => $('fCodigo').focus(), 60);
+}
+
+function renderExtra(prod){
+  const known = new Set(['id','codigo','codigo_producto','nombre','producto','titulo',
+    'categoria','rubro','precio_usd','precio','costo','descripcion','detalle',
+    'imagen','foto','link_imagen','url','disponible','estado','status','_fila','precio_bs']);
+  const keys = headers.filter(k => !known.has(clean(k).toLowerCase()));
+  $('extraFields').innerHTML = keys.map(k =>
+    `<div class="field"><label>${esc(k.replace(/_/g,' '))}</label><input class="input extra" data-key="${esc(k)}" value="${esc(prod ? prod[k] ?? '' : '')}" placeholder="Opcional"></div>`
+  ).join('');
+}
+
+function showPreview(url){
+  if (url){
+    $('preview').classList.add('show');
+    $('previewImg').src = url;
+    $('imageUrlText').textContent = url;
+    $('uploadText').textContent = 'Imagen actual/lista';
+  } else {
+    $('preview').classList.remove('show');
+    $('imageUrlText').textContent = '';
+  }
+}
+
+/* ============================================================
+   SUBIR IMAGEN A GITHUB
+   ============================================================ */
+async function uploadImage(file){
+  const reader = new FileReader();
+  const base64 = await new Promise((res, rej) => {
+    reader.onload = () => res(String(reader.result).split(',')[1]);
+    reader.onerror = rej;
+    reader.readAsDataURL(file);
+  });
+
+  $('uploadProgress').classList.add('show');
+  $('uploadBar').style.width = '20%';
+  $('uploadText').textContent = 'Subiendo a GitHub…';
+
+  const d = await post(
+    { action: 'subir_imagen_github', filename: file.name, mimeType: file.type || 'image/jpeg', base64 },
+    { reintentos: 20, espera: 900 }
+  );
+
+  $('uploadBar').style.width = '90%';
+  if (!d.ok) throw new Error(d.error || 'No se pudo subir la imagen');
+
+  pendingImageUrl = d.url;
+  $('uploadBar').style.width = '100%';
+  showPreview(pendingImageUrl);
+  $('uploadText').textContent = '✓ Imagen subida';
+  toast('Imagen subida a GitHub y enlace generado');
+}
+
+/* ============================================================
+   CONSTRUIR PRODUCTO
+   ============================================================ */
+function buildProduct(){
+  const p = {
+    id: clean($('fId').value) || clean($('fCodigo').value),
+    codigo: clean($('fCodigo').value),
+    codigo_producto: clean($('fCodigo').value),
+    nombre: clean($('fNombre').value),
+    categoria: clean($('fCategoria').value),
+    precio_usd: num($('fPrecio').value),
+    descripcion: clean($('fDescripcion').value),
+    imagen: pendingImageUrl,
+    disponible: $('fEstado').value === 'disponible',
+    status: $('fEstado').value,
+    _fila: editing ? editing._fila : undefined,
+    forzar_duplicado: $('fForzar').checked
+  };
+  document.querySelectorAll('.extra').forEach(i => p[i.dataset.key] = i.value);
+  return p;
+}
+
+/* ============================================================
+   GUARDAR PRODUCTO
+   ============================================================ */
+async function saveProduct(){
+  const codigo = clean($('fCodigo').value);
+  if (!codigo) { toast('El código del producto es obligatorio.', 'error'); return; }
+
+  const p = buildProduct();
+  $('saveBtn').disabled = true;
+  $('saveBtn').textContent = 'Guardando…';
+
+  try {
+    const action = editing ? 'editar_producto' : 'crear_producto';
+    const r = await post({ action, producto: p });
+
+    if (r.duplicado && !p.forzar_duplicado){
+      $('dupNotice').style.display = 'block';
+      $('dupNotice').innerHTML = '⚠️ ' + esc(r.duplicado.mensaje || 'Existe un registro repetido.') +
+        '<br><br>Marca <b>"Guardar aunque exista ID/código repetido"</b> si deseas continuar.';
+      return;
+    }
+    if (!r.ok) throw new Error(r.error || 'No se pudo guardar');
+
+    toast(editing ? 'Producto actualizado correctamente' : 'Producto agregado correctamente');
+    closeModals();
+    await getCatalog();
+  } catch(e){
+    toast(e.message, 'error');
+  } finally {
+    $('saveBtn').disabled = false;
+    $('saveBtn').textContent = 'Guardar producto';
+  }
+}
+
+/* ============================================================
+   POST CON CONFIRMACIÓN (evita falsos OK)
+   ============================================================ */
+async function post(payload, opciones = {}){
+  if (!gasUrl) throw new Error('Primero conecta el Apps Script');
+
+  const requestId = 'op_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  payload.request_id = requestId;
+
+  // 1) Enviar por iframe (evita CORS en Apps Script)
+  await new Promise(resolve => {
+    const frame = document.createElement('iframe');
+    frame.name = 'gas_write_' + requestId;
+    frame.style.display = 'none';
+    document.body.appendChild(frame);
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = gasUrl;
+    form.target = frame.name;
+    form.style.display = 'none';
+
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'payload';
+    input.value = JSON.stringify(payload);
+    form.appendChild(input);
+    document.body.appendChild(form);
+    form.submit();
+
+    setTimeout(() => { form.remove(); frame.remove(); resolve(); }, 800);
+  });
+
+  // 2) Confirmar por GET usando el request_id
+  const maxIntentos = opciones.reintentos || 12;
+  const espera = opciones.espera || 900;
+
+  for (let i = 0; i < maxIntentos; i++){
+    await new Promise(r => setTimeout(r, espera));
+    try {
+      const url = gasUrl + '?action=estado_operacion&id=' + encodeURIComponent(requestId) + '&t=' + Date.now();
+      const r = await fetch(url, { cache: 'no-store', redirect: 'follow' });
+      if (!r.ok) continue;
+      const data = await r.json();
+      if (data.pendiente) continue;
+      return data;
+    } catch(_) { /* reintentar */ }
+  }
+
+  throw new Error('El servidor no confirmó la operación. Revisa la implementación de Apps Script.');
+}
+
+/* ============================================================
+   EDITAR / ELIMINAR
+   ============================================================ */
+window.editProduct = fila => {
+  const p = products.find(x => Number(x._fila) === Number(fila));
+  if (p) openModal(p);
+};
+
+window.askDelete = fila => {
+  deleteTarget = products.find(x => Number(x._fila) === Number(fila));
+  if (deleteTarget){
+    $('deleteName').textContent = clean(deleteTarget.nombre || deleteTarget.codigo || deleteTarget.id) || 'este producto';
+    $('confirmModal').classList.add('show');
+  }
+};
+
+function closeModals(){
+  document.querySelectorAll('.modal').forEach(m => m.classList.remove('show'));
+  editing = null;
+  deleteTarget = null;
+  iniciarAutoRefresh(30);
+}
+
+/* ============================================================
+   THEME
+   ============================================================ */
+function applyTheme(theme){
+  document.documentElement.classList.toggle('dark', theme === 'dark');
+  document.documentElement.classList.toggle('light', theme !== 'dark');
+  $('themeBtn').textContent = theme === 'dark' ? '☀' : '☾';
+  $('themeBtn').title = theme === 'dark' ? 'Modo claro' : 'Modo noche';
+  localStorage.setItem('CATALOGO_THEME', theme);
+}
+
+function setupTheme(){
+  const saved = localStorage.getItem('CATALOGO_THEME');
+  applyTheme(saved || 'light');
+  $('themeBtn').onclick = () => applyTheme(
+    document.documentElement.classList.contains('dark') ? 'light' : 'dark'
+  );
+}
+
+/* ============================================================
+   PWA (instalación)
+   ============================================================ */
+function setupPWA(){
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    window.__install = e;
+    $('installBtn').style.display = 'inline-flex';
+  });
+  $('installBtn').onclick = async () => {
+    if (!window.__install){
+      toast('En iPhone usa Compartir → Agregar a pantalla de inicio.');
+      return;
+    }
+    window.__install.prompt();
+    await window.__install.userChoice;
+    window.__install = null;
+    $('installBtn').style.display = 'none';
+  };
+  if ('serviceWorker' in navigator){
+    navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+  }
+}
+
+/* ============================================================
+   AUTO REFRESH
+   ============================================================ */
+function iniciarAutoRefresh(segundos = 30){
+  detenerAutoRefresh();
+  autoRefreshId = setInterval(() => {
+    if (!document.hidden && !document.querySelector('.modal.show')) {
+      getCatalog();
+    }
+  }, segundos * 1000);
+}
+
+function detenerAutoRefresh(){
+  if (autoRefreshId){ clearInterval(autoRefreshId); autoRefreshId = null; }
+}
+
+/* ============================================================
+   EVENTOS
+   ============================================================ */
+$('productForm').addEventListener('submit', e => { e.preventDefault(); saveProduct(); });
+$('newBtn').onclick = () => openModal();
+$('newBtn2').onclick = () => openModal();
+$('refreshBtn').onclick = () => getCatalog();
+$('connectBtn').onclick = () => getCatalog();
+$('heroRetry').onclick = () => getCatalog();
+$('search').oninput = render;
+$('clearSearch').onclick = () => { $('search').value = ''; render(); };
+$('helpBtn').onclick = () => $('helpModal').classList.add('show');
+
+$('rateBtn').onclick = async () => {
+  const n = num($('rateInput').value);
+  if (!n || n <= 0){ toast('Escribe una tasa válida mayor que 0.', 'error'); return; }
+  $('rateBtn').disabled = true;
+  $('rateBtn').textContent = 'Guardando…';
+  try {
+    const r = await post({ action: 'actualizar_tasa', tasa: n });
+    if (!r.ok) throw new Error(r.error || 'No se pudo actualizar la tasa');
+    toast('✅ Tasa USD actualizada correctamente');
+    await getCatalog();
+  } catch(e){
+    toast(e.message, 'error');
+  } finally {
+    $('rateBtn').disabled = false;
+    $('rateBtn').textContent = 'Guardar';
+  }
+};
+
+$('confirmDelete').onclick = async () => {
+  if (!deleteTarget) return;
+  $('confirmDelete').disabled = true;
+  try {
+    const r = await post({
+      action: 'eliminar_producto',
+      fila: deleteTarget._fila,
+      id: deleteTarget.id,
+      nombre: deleteTarget.nombre
+    });
+    if (!r.ok) throw new Error(r.error || 'No se pudo borrar');
+    toast('Producto eliminado correctamente');
+    closeModals();
+    await getCatalog();
+  } catch(e){
+    toast(e.message, 'error');
+  } finally {
+    $('confirmDelete').disabled = false;
+  }
+};
+
+$('fImagenFile').addEventListener('change', async e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  if (f.size > 10 * 1024 * 1024){ toast('La imagen supera 10 MB.', 'error'); e.target.value = ''; return; }
+  try { await uploadImage(f); }
+  catch(err){
+    $('uploadProgress').classList.remove('show');
+    toast(err.message, 'error');
+  }
+});
+
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = closeModals);
+document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => {
+  if (e.target === m) m.classList.remove('show');
+}));
+
+$('gasUrl').value = gasUrl;
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k'){
+    e.preventDefault();
+    $('search').focus();
+  }
+  if (e.key === 'Escape') closeModals();
+});
+
+$('catalogBtn').onclick = () =>
+  window.open('https://kervysj.github.io/catalogo-2026/', '_blank', 'noopener');
+
+/* ============================================================
+   INICIO
+   ============================================================ */
+setupTheme();
+setupPWA();
+if (gasUrl) getCatalog();
+else toast('Pega la URL /exec de tu Apps Script para empezar.', 'warn');
+</script>
+</body>
+</html>
